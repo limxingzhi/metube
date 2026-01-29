@@ -19,6 +19,7 @@ RUN sed -i 's/\r$//g' docker-entrypoint.sh && \
     apk add --update ffmpeg aria2 coreutils shadow su-exec curl tini deno gdbm-tools sqlite file && \
     apk add --update --virtual .build-deps gcc g++ musl-dev uv && \
     UV_PROJECT_ENVIRONMENT=/usr/local uv sync --frozen --no-dev --compile-bytecode && \
+    pip install --force-reinstall "yt-dlp[default] @ https://github.com/yt-dlp/yt-dlp/archive/master.tar.gz" && \
     apk del .build-deps && \
     rm -rf /var/cache/apk/* && \
     mkdir /.cache && chmod 777 /.cache
