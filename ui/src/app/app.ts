@@ -1,6 +1,6 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, ElementRef, afterNextRender, viewChild, viewChildren, inject, OnDestroy, OnInit } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, viewChild, inject, OnDestroy, OnInit } from '@angular/core';
 import { Observable, OperatorFunction, Subject, Subscription, from, map, merge, debounceTime, distinctUntilChanged, filter, finalize, mergeMap, tap } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -30,7 +30,6 @@ import { SpeedPipe } from './pipes';
 import {
   ToastContainerComponent,
   PlaylistBrowserComponent,
-  SubscriptionsSectionComponent,
   BatchImportComponent,
   DownloadingSectionComponent,
   CompletedSectionComponent,
@@ -47,7 +46,6 @@ import {
         NgSelectModule,
         SpeedPipe,
         ToastContainerComponent,
-        SubscriptionsSectionComponent,
         DownloadingSectionComponent,
         CompletedSectionComponent,
   ],
@@ -110,8 +108,6 @@ export class App implements AfterViewInit, OnInit, OnDestroy {
   themes: Theme[] = Themes;
   activeTheme: Theme | undefined;
   readonly folderTypeahead = viewChild<NgbTypeahead>('folderTypeahead');
-  // The narrow and wide layouts each have their own URL box; only one is displayed.
-  readonly urlInputs = viewChildren<ElementRef<HTMLInputElement>>('urlInput');
   folderFocus$ = new Subject<string>();
   folderClick$ = new Subject<string>();
   ytDlpOptionsUpdateTime: string | null = null;
@@ -161,9 +157,6 @@ export class App implements AfterViewInit, OnInit, OnDestroy {
   faChevronDown = faChevronDown;
   faUpload = faUpload;
   constructor() {
-    // The page opens ready for a pasted URL. This waits for the first render
-    // to finish: moving focus inside change detection confuses its bookkeeping.
-    afterNextRender(() => this.focusUrlInput());
     // Remembered choices are checked against the catalog when it arrives.
     this.downloadType = this.settings.get('metube_download_type');
     this.codec = this.settings.get('metube_codec');
@@ -232,14 +225,6 @@ export class App implements AfterViewInit, OnInit, OnDestroy {
     this.socket.fromEvent('connect')
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => this.fetchVersionInfo());
-  }
-
-  // Focusing a box the current layout hides is a no-op, so the one on display
-  // ends up focused.
-  private focusUrlInput() {
-    for (const input of this.urlInputs()) {
-      input.nativeElement.focus();
-    }
   }
 
   ngOnDestroy() {
