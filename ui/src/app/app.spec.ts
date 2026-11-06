@@ -229,12 +229,11 @@ describe('App', () => {
     expect(app).toBeTruthy();
   });
 
-  it('focuses the URL box on load, before the queue has arrived, for a quick paste', async () => {
+  it('leaves focus alone on load so the page does not steal it', async () => {
     downloads.loading = true;
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
-    // NgModel applies [disabled] a microtask after the view is checked, and the
-    // focus waits for the render to finish, which a tick of the application completes.
+    // NgModel applies [disabled] a microtask after the view is checked.
     await Promise.resolve();
     TestBed.inject(ApplicationRef).tick();
     const boxes = Array.from(
@@ -242,7 +241,7 @@ describe('App', () => {
     );
     expect(boxes.length).toBe(2);
     expect(boxes.every((box) => !box.disabled)).toBe(true);
-    expect(boxes).toContain(document.activeElement as HTMLInputElement);
+    expect(boxes).not.toContain(document.activeElement as HTMLInputElement);
     const download = fixture.nativeElement.querySelector('button[type="submit"]') as HTMLButtonElement;
     expect(download.disabled).toBe(true);
   });
