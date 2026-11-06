@@ -242,6 +242,7 @@ describe('App', () => {
     expect(boxes.length).toBe(2);
     expect(boxes.every((box) => !box.disabled)).toBe(true);
     expect(boxes).not.toContain(document.activeElement as HTMLInputElement);
+    expect(boxes.every((box) => !box.hasAttribute('autofocus'))).toBe(true);
     const download = fixture.nativeElement.querySelector('button[type="submit"]') as HTMLButtonElement;
     expect(download.disabled).toBe(true);
   });
