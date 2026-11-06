@@ -2,27 +2,31 @@ name: update-yt-dlp
 
 on:
   schedule:
-    - cron: '0 0 * * *'
+    # Friday 23:00 SGT (UTC+8).
+    - cron: '0 15 * * 5'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
 
 jobs:
-  update-yt-dlp :
+  update:
     runs-on: ubuntu-latest
     steps:
-      -
-        name: Checkout
+      - name: Checkout
         uses: actions/checkout@v7
-        with:
-          token: ${{ secrets.AUTOUPDATE_PAT }}
-      -
-        name: Set up Python
+
+      - name: Set up Python
         uses: actions/setup-python@v7
         with:
           python-version: '3.14'
-      -
-        name: Install uv
+
+      - name: Install uv
         uses: astral-sh/setup-uv@v7
-      -
-        name: Update yt-dlp
+
+      - name: Update yt-dlp
+        id: update
         run: |
           uv sync --locked
           # Check if yt-dlp has updates available
@@ -33,11 +37,24 @@ jobs:
             # A package name: extras are not part of it, and pyproject.toml
             # decides which ones are installed.
             uv lock --upgrade-package yt-dlp
-            git config --global user.email "updater@metube"
-            git config --global user.name "AutoUpdater"
+            git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git config --global user.name "github-actions[bot]"
             git add uv.lock
             git commit -m "upgrade yt-dlp from $CURRENT_VERSION to $LATEST_VERSION"
-            git push
+            echo "updated=true" >> "$GITHUB_OUTPUT"
           else
             echo "yt-dlp is already up to date ($CURRENT_VERSION)"
+            echo "updated=false" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Push lockfile bump
+        if: steps.update.outputs.updated == 'true'
+        run: git push
+
+      # A GITHUB_TOKEN push does not start other workflows, so main.yml's
+      # build + release never fires on its own. Dispatch it explicitly.
+      - name: Start the release
+        if: steps.update.outputs.updated == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run main.yml --ref master
