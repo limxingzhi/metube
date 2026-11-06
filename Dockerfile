@@ -3,17 +3,9 @@
 # minimum supported version, breaking the build. node:22-alpine currently
 # satisfies @angular/cli's >=22.22.3 requirement.
 #
-# Pinned further, to a digest: Docker Hub rebuilt node:22-alpine on 2026-09-17
-# with the same Node (22.23.2) but refreshed Alpine layers, and that rebuild
-# dies under QEMU while cross-building the arm64 leg — `qemu: uncaught target
-# signal 4 (Illegal instruction)`, exit 132, during `pnpm install`. Three
-# consecutive release builds failed identically on it while every other input
-# (runner image, binfmt digest, pnpm version, lockfile) was unchanged.
-#
-# This digest is the last image known to cross-build cleanly (built 2026-07-29).
-# It ships nothing: this stage is thrown away and only ui/dist is copied out.
-# Unpin once the arm64 leg builds natively instead of under emulation, or once
-# a later node:22-alpine is confirmed to survive QEMU.
+# Pinned further, to a digest, so a publisher-side rebuild of the tag cannot
+# change what a release build runs. It ships nothing: this stage is thrown
+# away and only ui/dist is copied out.
 FROM node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS builder
 
 WORKDIR /metube
@@ -51,8 +43,6 @@ RUN sed -i 's/\r$//g' docker-entrypoint.sh && \
     rm -rf /var/lib/apt/lists/* && \
     mkdir /.cache && chmod 777 /.cache
 
-ARG TARGETARCH
-
 # ffmpeg is a static build of upstream's 8.1 release branch rather than
 # Debian's package: Debian stable stays a major version behind, and its 7.1
 # cannot seek into YouTube's HLS formats, so clip downloads came out with no
@@ -60,23 +50,13 @@ ARG TARGETARCH
 # the release-branch build takes 8.1 point releases only. Bump FFMPEG_BRANCH
 # deliberately, after testing clips and audio extraction on the new version.
 ARG FFMPEG_BRANCH=8.1
-RUN case "$TARGETARCH" in \
-      amd64) FFMPEG_ARCH="linux64" ;; \
-      arm64) FFMPEG_ARCH="linuxarm64" ;; \
-      *) echo "Unsupported TARGETARCH: $TARGETARCH" >&2; exit 1 ;; \
-    esac && \
-    curl -fL "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n${FFMPEG_BRANCH}-latest-${FFMPEG_ARCH}-gpl-${FFMPEG_BRANCH}.tar.xz" \
+RUN curl -fL "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n${FFMPEG_BRANCH}-latest-linux64-gpl-${FFMPEG_BRANCH}.tar.xz" \
       | tar -xJ -C /usr/local/bin --strip-components=2 --wildcards '*/bin/ffmpeg' '*/bin/ffprobe' && \
     ffmpeg -version | head -n 1
 
 RUN BGUTIL_TAG="$(curl -Ls -o /dev/null -w '%{url_effective}' https://github.com/jim60105/bgutil-ytdlp-pot-provider-rs/releases/latest | sed 's#.*/tag/##')" && \
-    case "$TARGETARCH" in \
-      amd64) BGUTIL_ARCH="x86_64" ;; \
-      arm64) BGUTIL_ARCH="aarch64" ;; \
-      *) echo "Unsupported TARGETARCH: $TARGETARCH" >&2; exit 1 ;; \
-    esac && \
     curl -L -o /usr/local/bin/bgutil-pot \
-      "https://github.com/jim60105/bgutil-ytdlp-pot-provider-rs/releases/download/${BGUTIL_TAG}/bgutil-pot-linux-${BGUTIL_ARCH}" && \
+      "https://github.com/jim60105/bgutil-ytdlp-pot-provider-rs/releases/download/${BGUTIL_TAG}/bgutil-pot-linux-x86_64" && \
     chmod +x /usr/local/bin/bgutil-pot && \
     PLUGIN_DIR="$(python3 -c 'import site; print(site.getsitepackages()[0])')" && \
     curl -L -o /tmp/bgutil-ytdlp-pot-provider-rs.zip \
